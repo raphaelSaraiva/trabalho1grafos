@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="./VivaGraphJS/dist/vivagraph.js"></script>
+    <style type="text/css" media="screen">
+        html,
+        body,
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+
+<body onload="onLoad()">
+    <div style="margin-left: 33%; border-style: solid; width: 25%; padding: 1%;">
+        <b>Calculo de Similaridade</b>
+        <br><br>
+        <div class="row">
+            <h>Selecionar aeroportos brasileiros:</h>
+            <input type="file" name="fileAiports" id="fileAiports">
+        </div>
+        <br>
+        <div class="row">
+            <h>Selecionar rotas:</h>
+            <input type="file" name="fileRouters" id="fileRouters">
+            <button onclick="javascript:loadNew()" name="loadNew">Carregar grafo</button>
+        </div>
+        <br><br>
+        <div class="row">
+            <select name="select1" id="select1">
+            </select>
+            <select name="select2" id="select2">
+            </select>
+            <button onclick="javascript:calcJaccard()" name="calcjaccard">Jaccard</button>
+            <button onclick="javascript:calcCosseno()" name="calccosseno">Cosseno</button>
+        </div>
+    </div>
+
+</body>
+
+
+<script>
+    var App = {};
+    var Graph = {};
+    var aeroportos = [];
+    var dadosJaccard = [];
+    var dadosCosseno = [];
+    var linhasAereas = [];
+    var quantRotas = [];
+
+    function onLoad() {
+
+        var graph = Viva.Graph.graph();
+
+        // Construct the graph
+        App.graphGenerator = Viva.Graph.generator();
+        App.graph = graph;
+        App.layout = Viva.Graph.Layout.forceDirected(App.graph);
+        App.graphics = Viva.Graph.View.webglGraphics();
+        App.renderer = Viva.Graph.View.renderer(App.graph, {
+            layout: App.layout,
+            graphics: App.graphics,
+            container: document.getElementById('graph-container')
+        });
+        App.renderer.run();
+    }
+
+
+    function calcJaccard() {
+        var e = document.getElementById("select1");
+        var aero1 = e.value;
+
+        var e = document.getElementById("select2");
+        var aero2 = e.value;
+
+        var concat_array = [...dadosJaccard[aero1], ...dadosJaccard[aero2]];
+        var array_union = [...new Set(concat_array)];
+
+        var array_intersection = dadosJaccard[aero1].filter(valor => -1 !== dadosJaccard[aero2].indexOf(valor));
+        alert(array_intersection.length / array_union.length);
+
+    }
+
+
+    function calcCosseno() {
+        var e = document.getElementById("select1");
+        var aero1 = e.value;
+
+        var e = document.getElementById("select2");
+        var aero2 = e.value;
+
+        var vetor1 = [];
+        var vetor2 = [];
+
+        linhasAereas.forEach(element => {
+            if (dadosJaccard[aero1].indexOf(element) != -1) {
+                vetor1.push(quantRotas[aero1][element]);
+            } else {
+                vetor1.push(0);
+            }
+        });
+        linhasAereas.forEach(element => {
+            if (dadosJaccard[aero2].indexOf(element) != -1) {
+                vetor2.push(quantRotas[aero2][element]);
+            } else {
+                vetor2.push(0);
+            }
+        });
+
+        var somatorio = 0
+        for (let index = 0; index < vetor1.length; index++) {
+            console.log(vetor1[index]);
+            console.log(vetor2[index]);
+            console.log(vetor1[index] * vetor2[index]);
+            somatorio = somatorio + (vetor1[index] * vetor2[index]);
+        }
+
+        var mod1 = 0
+        for (let index = 0; index < vetor1.length; index++) {
+            mod1 = mod1 + (vetor1[index] * vetor1[index]);
+        }
+        mod1 = Math.sqrt(mod1);
+        console.log(mod1);
+
+        var mod2 = 0
+        for (let index = 0; index < vetor1.length; index++) {
+            mod2 = mod2 + (vetor2[index] * vetor2[index]);
+        }
+        mod2 = Math.sqrt(mod2);
+        Denominador = mod1 * mod2;
+
+        alert(somatorio/Denominador);
+
+    }
+
+    function copyGraph(from, to) {
+        to.beginUpdate();
+        from.forEachLink(copyLink);
+        to.endUpdate();
+        function copyLink(link) {
+            to.addLink(link.fromId, link.toId);
+        }
+    }
+
+    function loadNew() {
+        copyGraph(Graph, App.graph);
+    }
+
+    function loadAirports() {
+        copyGraph(Graph, App.graph);
+    }
+
+
+    document.getElementById('fileRouters').onchange = function () {
+        Graph = Viva.Graph.graph();
+        select1 = document.getElementById('select1');
+        select2 = document.getElementById('select2');
+
+        var vector = [];
+        var file = this.files[0];
+        var reader = new FileReader();
+        reader.onload = function (progressEvent) {
+            // By lines
+            var lines = this.result.split('\n');
+            for (var line = 0; line < lines.length; line++) {
+                var data = lines[line].split(',');
+
+                if (aeroportos.indexOf(data[2]) == -1 && aeroportos.length != 0) continue;
+                if (aeroportos.indexOf(data[4]) == -1 && aeroportos.length != 0) continue;
+
+                Graph.addLink(data[2], line);
+                Graph.addLink(data[2], data[0]);
+                Graph.addLink(data[4], line);
+                Graph.addLink(data[4], data[0]);
+
+                if (linhasAereas.indexOf(data[0]) == -1) linhasAereas.push(data[0]);
+                if (vector.indexOf(data[2]) == -1) vector.push(data[2]);
+                if (vector.indexOf(data[4]) == -1) vector.push(data[4]);
+
+
+                //informações para calculo do jaccard 
+                if (dadosJaccard[data[2]] == undefined) {
+                    dadosJaccard[data[2]] = [line, data[0]]
+                } else {
+                    if (dadosJaccard[data[2]].indexOf(line) == -1) {
+                        dadosJaccard[data[2]] = [...dadosJaccard[data[2]], line];
+                    }
+                    if (dadosJaccard[data[2]].indexOf(data[0]) == -1) {
+                        dadosJaccard[data[2]] = [...dadosJaccard[data[2]], data[0]];
+                    }
+                }
+
+                if (dadosJaccard[data[4]] == undefined) {
+                    dadosJaccard[data[4]] = [line, data[0]]
+                } else {
+                    if (dadosJaccard[data[4]].indexOf(line) == -1) {
+                        dadosJaccard[data[4]] = [...dadosJaccard[data[4]], line];
+                    }
+                    if (dadosJaccard[data[4]].indexOf(data[0]) == -1) {
+                        dadosJaccard[data[4]] = [...dadosJaccard[data[4]], data[0]];
+                    }
+                }
+
+                //informações para calculo do cosseno 
+                if (dadosCosseno[data[2]] == undefined) {
+                    dadosCosseno[data[2]] = [data[0]];
+                    var quant = [];
+                    quant[data[0]] = 1;
+                    if (quantRotas[data[2]] == undefined) {
+                        quantRotas[data[2]] = quant
+                    } else {
+                        quantRotas[data[2]] = [...quantRotas[data[2]], quant]
+                    }
+                } else {
+                    if (dadosCosseno[data[2]].indexOf(data[0]) == -1) {
+                        dadosCosseno[data[2]] = [...dadosCosseno[data[2]], data[0]];
+                        var quant = [];
+                        quant[data[0]] = 1;
+                        if (quantRotas[data[2]] == undefined) {
+                            quantRotas[data[2]] = quant
+                        } else {
+                            quantRotas[data[2]][data[0]] = 1;
+                        }
+                    } else {
+                        quantRotas[data[2]][data[0]]++;
+                    }
+                }
+
+                if (dadosCosseno[data[4]] == undefined) {
+                    dadosCosseno[data[4]] = [data[0]];
+                    var quant = [];
+                    quant[data[0]] = 1;
+                    if (quantRotas[data[4]] == undefined) {
+                        quantRotas[data[4]] = quant
+                    } else {
+                        quantRotas[data[4]] = [...quantRotas[data[4]], quant]
+                    }
+                } else {
+                    if (dadosCosseno[data[4]].indexOf(data[0]) == -1) {
+                        dadosCosseno[data[4]] = [...dadosCosseno[data[4]], data[0]];
+                        var quant = [];
+                        quant[data[0]] = 1;
+                        if (quantRotas[data[4]] == undefined) {
+                            quantRotas[data[4]] = quant
+                        } else {
+                            quantRotas[data[4]][data[0]] = 1;
+                        }
+                    } else {
+                        quantRotas[data[4]][data[0]]++;
+                    }
+                }
+
+            }
+
+            vector.forEach(function (value) {
+                var opt1 = document.createElement('option');
+                opt1.value = value;
+                opt1.innerHTML = value;
+
+                var opt2 = document.createElement('option');
+                opt2.value = value;
+                opt2.innerHTML = value;
+
+                select1.appendChild(opt1);
+                select2.appendChild(opt2);
+            });
+
+            console.log(dadosCosseno);
+            console.log(quantRotas);
+        };
+        reader.readAsText(file);
+
+    };
+
+
+
+    document.getElementById('fileAiports').onchange = function () {
+        var file = this.files[0];
+        var reader = new FileReader();
+        reader.onload = function (progressEvent) {
+            // By lines
+            var lines = this.result.split('\n');
+            for (var line = 0; line < lines.length; line++) {
+                var data = lines[line].split(',');
+                if(data[3] == '"Brazil"'){
+                    datajust = data[4].replace(/^"|"$/g, '');
+                    aeroportos.push(datajust);
+                }
+            }
+            console.log(aeroportos);
+        };
+        reader.readAsText(file);
+
+    };
+
+</script>
+
+</html>
